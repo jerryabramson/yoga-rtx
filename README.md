@@ -66,6 +66,7 @@ Every `install.sh` takes `--uninstall`.
 - NVIDIA's MT8901 UCM work: [alsa-ucm-conf PR 862](https://github.com/alsa-project/alsa-ucm-conf/pull/862).
 - The ASUS ProArt P16 (H7607BA) Arch Linux ARM enablement project, a sibling
   N1X laptop, pointed the way on NV-Kernels, SSPM and audio.
+   - https://github.com/johannhartmann/asus-proart-p16-rtx-spark-linux/issues/7
 
 ## License
 
