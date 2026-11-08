@@ -14,6 +14,7 @@ Tested on Ubuntu 26.04.1 LTS, kernel `7.0.0-1025-nvidia`, NVIDIA driver
 |---|---|---|
 | Internal panel, HDMI, GPU/CUDA | ✅ | NVIDIA 615.71.10 open driver (DKMS) |
 | Wi-Fi | ✅ | stock (~1.35 Gbit/s measured) |
+| 10 GbE USB adapter (Realtek RTL8159) | ✅ | `network/`: Realtek's r8152 via DKMS; downloads 2.15 → 6.33 Gbit/s |
 | Internal keyboard, touchpad, touchscreen, pen | ✅ | `-nvidia` kernel + `acpi_osi="!Windows 2022"` |
 | Touchpad click force | ✅ | `touchpad/`: set to light (1 of 3) |
 | Hotkeys (mute, volume, mic mute, brightness) | ✅ | `keyboard/`: F1–F6 remapped (plain F1–F6 lost) |
@@ -38,7 +39,9 @@ Tested on Ubuntu 26.04.1 LTS, kernel `7.0.0-1025-nvidia`, NVIDIA driver
 2. **Touchpad click force**: `sudo touchpad/install.sh`
 3. **Audio**: `sudo audio/install.sh`, then
    `systemctl --user restart wireplumber pipewire pipewire-pulse`
-4. **Keyboard**: `sudo keyboard/install.sh` (via `sudo` from your desktop
+4. **Wired network** (only for an RTL8159 adapter):
+   `sudo network/install.sh /path/to/r8152-vX.Y.Z.tar.gz`, then replug it.
+5. **Keyboard**: `sudo keyboard/install.sh` (via `sudo` from your desktop
    account), then in System Settings → Keyboard → Shortcuts → Power
    Management unbind *Increase/Decrease Screen Brightness*, and log out and
    back in.
@@ -51,9 +54,10 @@ Every `install.sh` takes `--uninstall`.
 |---|---|
 | `docs/base-system.md` | Ubuntu, kernel, boot parameter, NVIDIA driver, CUDA |
 | `docs/acpi-findings.md` | What the firmware tables revealed (MediaTek IP, the `_OSI` gate, input devices, the EC/WMI hotkey path) |
-| `docs/touchpad.md`, `docs/keyboard.md`, `docs/audio.md` | Per-component details and findings |
+| `docs/touchpad.md`, `docs/keyboard.md`, `docs/audio.md`, `docs/network.md` | Per-component details and findings |
 | `touchpad/` | `elan-touchpad` tool, udev rule, resume hook |
 | `audio/` | ALSA UCM profile |
+| `network/` | DKMS packaging for Realtek's r8152 driver (RTL8159) |
 | `keyboard/` | hwdb remap, libinput quirk, `panel-brightness` + key service |
 | `tools/` | `keywatch` (evdev key events), `hid-descriptor` (HID report descriptor decoder) |
 

@@ -108,4 +108,4 @@ DisplayPort outputs and Ethernet (both carried in USB4 tunnels) don't.
   USB4 work upstream. It isn't something a config change can fix.
 
 Workarounds: the laptop's own HDMI port for a display; a USB Ethernet adapter
-on the dock's USB ports.
+(see [network.md](network.md) for the RTL8159 10 GbE one).
