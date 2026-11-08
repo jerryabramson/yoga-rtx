@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""Decode a HID report descriptor into an indented item list.
+
+Usage: hid-descriptor VID:PID        e.g. hid-descriptor 04F3:3355
+       hid-descriptor FILE           a saved report_descriptor
+Reads /sys/bus/hid/devices/*:VID:PID.*/report_descriptor (no root needed).
+Used to find the touchpad's click-force (feature 8), haptic intensity
+(feature 9) and manual-trigger (output 0x43) reports, the keyboard's
+Consumer Control report, and the touchpad's hidden pen collection.
+"""
+import glob
+import os
+import sys
+
+MAIN = {0x8: "Input", 0x9: "Output", 0xB: "Feature", 0xA: "Collection", 0xC: "EndCollection"}
+GLOBAL = {0x0: "UsagePage", 0x1: "LogicalMin", 0x2: "LogicalMax", 0x3: "PhysicalMin",
+          0x4: "PhysicalMax", 0x5: "UnitExponent", 0x6: "Unit", 0x7: "ReportSize",
+          0x8: "ReportID", 0x9: "ReportCount", 0xA: "Push", 0xB: "Pop"}
+LOCAL = {0x0: "Usage", 0x1: "UsageMin", 0x2: "UsageMax"}
+COLLECTION = {0: "Physical", 1: "Application", 2: "Logical", 3: "Report"}
+
+
+def load(arg):
+    if os.path.isfile(arg):
+        return open(arg, "rb").read()
+    paths = glob.glob(f"/sys/bus/hid/devices/*:{arg.upper()}.*/report_descriptor")
+    if not paths:
+        sys.exit(f"no HID device {arg}")
+    return open(paths[0], "rb").read()
+
+
+def main():
+    if len(sys.argv) != 2:
+        sys.exit(__doc__)
+    d = load(sys.argv[1])
+    i = depth = 0
+    while i < len(d):
+        b = d[i]
+        size = (0, 1, 2, 4)[b & 3]
+        kind, tag = (b >> 2) & 3, b >> 4
+        v = int.from_bytes(d[i + 1:i + 1 + size], "little")
+        i += 1 + size
+        if kind == 0:
+            name = MAIN.get(tag, f"Main?{tag:x}")
+            if name == "EndCollection":
+                depth -= 1
+            extra = f" ({COLLECTION.get(v, '?')})" if name == "Collection" else ""
+            print("  " * depth + f"{name} 0x{v:x}{extra}")
+            if name == "Collection":
+                depth += 1
+        else:
+            name = (GLOBAL if kind == 1 else LOCAL).get(tag, f"{'Global' if kind == 1 else 'Local'}?{tag:x}")
+            print("  " * depth + f"{name} 0x{v:x}")
+
+
+if __name__ == "__main__":
+    main()

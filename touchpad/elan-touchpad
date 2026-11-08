@@ -1,0 +1,217 @@
+#!/usr/bin/env python3
+"""Read or set click force and haptic strength on the Yoga 9N ELAN haptic touchpad.
+
+The pad (HID 04F3:3355) exposes two HID feature reports:
+  report 8  Digitizer "Button Press Threshold" (0x0D:0xB0), 2 bits, 1..3
+            1 = lightest click, 3 = firmest (Windows' "click force")
+  report 9  Haptics "Intensity" (0x0E:0x23), 2 bytes: [intensity 0..100, 0]
+            strength of the click vibration; 0 = off. WRITE-ONLY: the firmware
+            answers GET_REPORT for it with garbage (report ID 0xFF). The
+            descriptor tags both bytes as Intensity, but the second byte must be
+            0: the firmware silently ignores e.g. [100, 100] (found 2026-11-08).
+
+Usage (needs root for /dev/hidraw*):
+    elan-touchpad                       show both settings
+    elan-touchpad force 1|2|3           set click force
+    elan-touchpad haptic 0..100         set vibration strength
+    elan-touchpad force 1 haptic 80     set both
+    elan-touchpad reset                 rebind the i2c-hid driver; the probe
+                                        sends HID RESET, restoring firmware
+                                        defaults (the touchpad is gone ~1 s)
+    elan-touchpad raw RID BYTE...       send exact SET_FEATURE bytes (debugging)
+    elan-touchpad waveforms             list the waveforms the pad can play
+    elan-touchpad buzz ORD [INT [REP]] [--ms N]
+                                        play one manually: ordinal 1-7,
+                                        intensity 0-4 (default 4), repeat 0-5;
+                                        --ms N sends Stop after N ms (ords 4-7
+                                        are continuous, >= 1 s otherwise).
+                                        Ords 4->6 feel high->low pitch; 6 is a
+                                        deep "bass drum" thump.
+
+Intensity (report 9) is effectively on/off on this firmware: 3, 30 and 100
+feel the same. It is also a master switch: at 0, manual buzzes are muted too,
+so the built-in click can't be replaced by a stronger host-triggered one
+(stacking both gives a buzz-pause-buzz double). Tested 2026-11-08.
+"""
+import fcntl
+import glob
+import os
+import sys
+import time
+
+VID_PID = "04F3:3355"
+REPORT_LEN = 3  # both reports: report ID + 2 data bytes
+
+# name: (report id, valid range, help)
+SETTINGS = {
+    "force": (0x08, range(1, 4), "1=light 2=medium 3=firm"),
+    "haptic": (0x09, range(0, 101), "0-100%, write-only"),
+}
+
+
+def _ioc(nr, size):
+    # _IOC(_IOC_READ|_IOC_WRITE, 'H', nr, size) — generic encoding (arm64, x86)
+    return (3 << 30) | (size << 16) | (ord("H") << 8) | nr
+
+
+HIDIOCSFEATURE = _ioc(0x06, REPORT_LEN)
+HIDIOCGFEATURE = _ioc(0x07, REPORT_LEN)
+
+
+def find_hidraw():
+    for dev in sorted(glob.glob(f"/sys/bus/hid/devices/*:{VID_PID}.*/hidraw/hidraw*")):
+        return "/dev/" + os.path.basename(dev)
+    sys.exit(f"no hidraw node found for {VID_PID}")
+
+
+def get_report(fd, rid):
+    buf = bytearray([rid] + [0] * (REPORT_LEN - 1))
+    fcntl.ioctl(fd, HIDIOCGFEATURE, buf, True)
+    return buf
+
+
+def get_value(fd, name):
+    if name == "haptic":
+        return "?"  # write-only on this firmware
+    return get_report(fd, SETTINGS[name][0])[1] & 0x03
+
+
+def set_value(fd, name, value):
+    rid = SETTINGS[name][0]
+    if name == "force":
+        buf = get_report(fd, rid)  # read-modify-write: keep the padding bits
+        buf[0] = rid
+        buf[1] = (buf[1] & ~0x03) | value
+    else:
+        buf = bytearray([rid, value, 0])
+    fcntl.ioctl(fd, HIDIOCSFEATURE, buf, True)
+
+
+def parse_args(argv):
+    if len(argv) % 2:
+        sys.exit(__doc__)
+    changes = []
+    for name, val in zip(argv[::2], argv[1::2]):
+        if name not in SETTINGS:
+            sys.exit(f"unknown setting {name!r}; use force or haptic")
+        try:
+            v = int(val)
+        except ValueError:
+            sys.exit(f"{name}: {val!r} is not a number")
+        if v not in SETTINGS[name][1]:
+            sys.exit(f"{name}: must be {SETTINGS[name][2]}")
+        changes.append((name, v))
+    return changes
+
+
+def reset():
+    hid = sorted(glob.glob(f"/sys/bus/hid/devices/*:{VID_PID}.*"))
+    if not hid:
+        sys.exit(f"no HID device found for {VID_PID}")
+    i2c_dev = os.path.dirname(os.path.realpath(hid[0]))  # .../i2c-WACF2205:00
+    name = os.path.basename(i2c_dev)
+    driver = os.path.realpath(os.path.join(i2c_dev, "driver"))
+    with open(os.path.join(driver, "unbind"), "w") as f:
+        f.write(name)
+    time.sleep(0.5)
+    with open(os.path.join(driver, "bind"), "w") as f:
+        f.write(name)
+    for _ in range(50):  # wait for the hidraw node to come back
+        if glob.glob(f"/sys/bus/hid/devices/*:{VID_PID}.*/hidraw/hidraw*"):
+            break
+        time.sleep(0.1)
+    print(f"reset {name} via {os.path.basename(driver)}")
+
+
+def raw(args):
+    """raw RID BYTE...  — send a SET_FEATURE with exactly these bytes (debugging)."""
+    vals = [int(a, 0) for a in args]
+    if not vals or any(not 0 <= v <= 255 for v in vals):
+        sys.exit("raw: give a report id and data bytes, each 0..255 (0x.. ok)")
+    buf = bytearray(vals)
+    req = _ioc(0x06, len(buf))
+    fd = os.open(find_hidraw(), os.O_RDWR)
+    try:
+        n = fcntl.ioctl(fd, req, buf, True)
+    finally:
+        os.close(fd)
+    print(f"SET_FEATURE {' '.join(f'{v:02x}' for v in vals)} -> {n}")
+
+
+def waveforms():
+    """GET feature 0x42: the 16-bit waveform IDs behind manual-trigger ordinals 3..7."""
+    buf = bytearray([0x42] + [0] * 10)
+    fd = os.open(find_hidraw(), os.O_RDWR)
+    try:
+        fcntl.ioctl(fd, _ioc(0x07, len(buf)), buf, True)
+    finally:
+        os.close(fd)
+    ids = [int.from_bytes(buf[1 + 2 * i:3 + 2 * i], "little") for i in range(5)]
+    print("ordinal 1 = none, 2 = stop (HID standard)")
+    for o, w in zip(range(3, 8), ids):
+        print(f"ordinal {o} = waveform 0x{w:04x}")
+
+
+def buzz(args):
+    """Output report 0x43: [id, ordinal 1..7, intensity 0..4, repeat 0..5,
+    retrigger period u16 0..1000, cutoff time u16 1000..5000]."""
+    ms = None
+    if "--ms" in args:
+        i = args.index("--ms")
+        try:
+            ms = int(args[i + 1])
+        except (IndexError, ValueError):
+            sys.exit("buzz: --ms needs a number of milliseconds")
+        args = args[:i] + args[i + 2:]
+    try:
+        ordinal = int(args[0])
+        intensity = int(args[1]) if len(args) > 1 else 4
+        repeat = int(args[2]) if len(args) > 2 else 0
+    except (IndexError, ValueError):
+        sys.exit("buzz ORDINAL(1-7) [INTENSITY(0-4)] [REPEAT(0-5)] [--ms N]")
+    if not (1 <= ordinal <= 7 and 0 <= intensity <= 4 and 0 <= repeat <= 5):
+        sys.exit("buzz: ordinal 1-7, intensity 0-4, repeat 0-5")
+    fd = os.open(find_hidraw(), os.O_RDWR)
+    try:
+        n = os.write(fd, trigger_report(ordinal, intensity, repeat))
+        if ms is not None:
+            time.sleep(ms / 1000)
+            os.write(fd, trigger_report(2, 0, 0))  # ordinal 2 = HID "Stop"
+    finally:
+        os.close(fd)
+    print(f"played ordinal {ordinal} intensity {intensity} repeat {repeat}"
+          + (f", stopped after {ms} ms" if ms is not None else "") + f" ({n} bytes)")
+
+
+def trigger_report(ordinal, intensity, repeat, period=0, cutoff=1000):
+    """Output report 0x43 (manual trigger). cutoff is clamped by the pad to >= 1000."""
+    return (bytes([0x43, ordinal, intensity, repeat])
+            + period.to_bytes(2, "little") + cutoff.to_bytes(2, "little"))
+
+
+def main():
+    if sys.argv[1:2] == ["raw"]:
+        return raw(sys.argv[2:])
+    if sys.argv[1:2] == ["waveforms"]:
+        return waveforms()
+    if sys.argv[1:2] == ["buzz"]:
+        return buzz(sys.argv[2:])
+    if sys.argv[1:2] == ["reset"]:
+        reset()
+        sys.argv[1:2] = []
+        if len(sys.argv) == 1:
+            return
+    changes = parse_args(sys.argv[1:])
+    path = find_hidraw()
+    fd = os.open(path, os.O_RDWR)
+    try:
+        for name, v in changes:
+            set_value(fd, name, v)
+        shown = ", ".join(f"{n} {get_value(fd, n)} ({SETTINGS[n][2]})" for n in SETTINGS)
+        print(f"{path}: {shown}")
+    finally:
+        os.close(fd)
+
+
+if __name__ == "__main__":
+    main()

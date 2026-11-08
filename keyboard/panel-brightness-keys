@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""Brightness keys (with key repeat) -> laptop panel only, on Plasma.
+
+Plasma's own brightness keys change every display, and Plasma ignores key
+repeat for custom command shortcuts. So this root service reads the internal
+keyboard's evdev node (048D:83DB) itself, reacts only to KEY_BRIGHTNESSUP/DOWN
+(press and repeat), and runs /usr/local/bin/panel-brightness as the desktop user inside
+their session (KWin does the change; the Plasma OSD still shows). Repeats that
+arrive while a step is running are merged into one larger step.
+
+Nothing is grabbed and no other key is looked at; the user session gets no
+keyboard access. Run by panel-brightness-keys.service.
+
+Usage: panel-brightness-keys USER [STEP]   (default step 5%)
+"""
+import glob
+import os
+import pwd
+import select
+import struct
+import subprocess
+import sys
+import time
+
+EV = struct.Struct("llHHi")
+EV_KEY, KEY_BRIGHTNESSDOWN, KEY_BRIGHTNESSUP = 1, 224, 225
+VID_PID = ("048d", "83db")
+# Absolute path: the session env passed to the child has no /usr/sbin.
+RUNUSER = next((p for p in ("/usr/sbin/runuser", "/sbin/runuser", "/usr/bin/runuser")
+                if os.path.exists(p)), "runuser")
+
+
+def log(msg):
+    print(msg, flush=True)
+
+
+def find_keyboard():
+    for ev in sorted(glob.glob("/sys/class/input/event*")):
+        try:
+            ids = tuple(open(f"{ev}/device/id/{k}").read().strip() for k in ("vendor", "product"))
+            words = open(f"{ev}/device/capabilities/key").read().split()
+        except OSError:
+            continue
+        bits = int("".join(w.rjust(16, "0") for w in words), 16)
+        if ids == VID_PID and bits >> KEY_BRIGHTNESSUP & 1:
+            return "/dev/input/" + os.path.basename(ev)
+    return None
+
+
+def run_step(user, delta):
+    pw = pwd.getpwnam(user)
+    rt = f"/run/user/{pw.pw_uid}"
+    sockets = [p for p in sorted(glob.glob(f"{rt}/wayland-*")) if not p.endswith(".lock")]
+    if not sockets:
+        return  # nobody logged in to a Wayland session
+    env = {
+        "HOME": pw.pw_dir, "USER": user, "LOGNAME": user,
+        "PATH": "/usr/local/bin:/usr/bin:/bin",
+        "XDG_RUNTIME_DIR": rt,
+        "WAYLAND_DISPLAY": os.path.basename(sockets[0]),
+        "DBUS_SESSION_BUS_ADDRESS": f"unix:path={rt}/bus",
+    }
+    cmd = [RUNUSER, "-u", user, "--", "/usr/local/bin/panel-brightness",
+           "up" if delta > 0 else "down", str(abs(delta))]
+    try:
+        r = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=5)
+        if r.returncode:
+            log(f"step failed ({r.returncode}): {r.stderr.strip()[:300]}")
+    except (OSError, subprocess.SubprocessError) as e:  # never drop the keyboard over this
+        log(f"step failed: {e}")
+
+
+def serve(user, step):
+    path = find_keyboard()
+    if not path:
+        raise FileNotFoundError("internal keyboard with brightness keys not found")
+    fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+    log(f"watching {path} for brightness keys; stepping {step}% for {user}")
+    try:
+        while True:
+            select.select([fd], [], [])
+            delta = 0
+            while True:  # drain everything queued (coalesce repeats)
+                try:
+                    data = os.read(fd, EV.size * 64)
+                except BlockingIOError:
+                    break
+                if not data:
+                    raise OSError("device closed")
+                for off in range(0, len(data) - EV.size + 1, EV.size):
+                    _, _, t, code, val = EV.unpack_from(data, off)
+                    if t == EV_KEY and val in (1, 2):  # press or auto-repeat
+                        if code == KEY_BRIGHTNESSUP:
+                            delta += step
+                        elif code == KEY_BRIGHTNESSDOWN:
+                            delta -= step
+            if delta:
+                run_step(user, max(-100, min(100, delta)))
+    finally:
+        os.close(fd)
+
+
+def main():
+    if len(sys.argv) < 2:
+        sys.exit(__doc__)
+    user = sys.argv[1]
+    step = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+    while True:
+        try:
+            serve(user, step)
+        except OSError as e:
+            log(f"keyboard unavailable ({e}); retrying")
+            time.sleep(2)
+
+
+if __name__ == "__main__":
+    main()

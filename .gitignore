@@ -1,0 +1,8 @@
+# Never commit vendor firmware or ACPI dumps (no redistribution license)
+acpi/
+*.aml
+*.dsl
+DSDT*
+SSDT*
+__pycache__/
+*.pyc

@@ -1,0 +1,15 @@
+# Lenovo Yoga 9 2-in-1 16N1X11 (83N7): libinput local overrides.
+# Installed as /etc/libinput/local-overrides.quirks; takes effect when the
+# compositor (KWin) restarts its libinput context, i.e. on the next login.
+#
+# libinput suspends only *internal* keyboards when the tablet-mode switch
+# (hinge sensor ID9001 -> soc_button_array gpio-keys, SW_TABLET_MODE) is on.
+# Its generic rules count only PS/2 keyboards as internal, so this I2C HID
+# keyboard defaulted to external and stayed active in tablet mode.
+
+[Yoga 9N internal keyboard]
+MatchBus=i2c
+MatchVendor=0x048D
+MatchProduct=0x83DB
+MatchDMIModalias=dmi:*:svnLENOVO:pn83N7:*
+AttrKeyboardIntegration=internal

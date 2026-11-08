@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""Print key events from every input device, with device and key names.
+
+Usage: sudo keywatch [SECONDS]   (default 20; Ctrl-C to stop early)
+Also prints MSC_SCAN scancodes, so keys the kernel can't map still show up.
+"""
+import glob
+import os
+import re
+import select
+import struct
+import sys
+import time
+
+EV = struct.Struct("llHHi")
+EV_KEY, EV_MSC, MSC_SCAN = 1, 4, 4
+
+names = {}
+try:
+    for line in open("/usr/include/linux/input-event-codes.h"):
+        m = re.match(r"#define\s+((?:KEY|BTN)_\w+)\s+(0x[0-9a-fA-F]+|\d+)", line)
+        if m:
+            names.setdefault(int(m.group(2), 0), m.group(1))
+except OSError:
+    pass
+
+fds = {}
+for ev in sorted(glob.glob("/dev/input/event*")):
+    n = os.path.basename(ev)
+    try:
+        name = open(f"/sys/class/input/{n}/device/name").read().strip()
+        fds[os.open(ev, os.O_RDONLY | os.O_NONBLOCK)] = f"{n} [{name}]"
+    except OSError as e:
+        print(f"skip {ev}: {e}", file=sys.stderr)
+
+secs = float(sys.argv[1]) if len(sys.argv) > 1 else 20
+print(f"watching {len(fds)} devices for {secs:.0f} s: press the hotkeys now (Fn+key too)", flush=True)
+end = time.monotonic() + secs
+scan = {}
+try:
+    while (left := end - time.monotonic()) > 0:
+        r, _, _ = select.select(list(fds), [], [], left)
+        for fd in r:
+            data = os.read(fd, EV.size * 64)
+            for off in range(0, len(data) - EV.size + 1, EV.size):
+                _, _, t, code, val = EV.unpack_from(data, off)
+                if t == EV_MSC and code == MSC_SCAN:
+                    scan[fd] = val
+                elif t == EV_KEY and val in (0, 1):
+                    s = f" scan=0x{scan.pop(fd):x}" if fd in scan else ""
+                    print(f"{fds[fd]}: {names.get(code, code)} {'down' if val else 'up'}{s}", flush=True)
+except KeyboardInterrupt:
+    pass

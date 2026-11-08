@@ -1,0 +1,3 @@
+# Yoga 9N ELAN haptic touchpad (HID 04F3:3355): apply click force 1 (light)
+# whenever its hidraw node appears (boot, driver rebind, device reset).
+ACTION=="add", SUBSYSTEM=="hidraw", KERNELS=="0018:04F3:3355.*", RUN+="/usr/local/bin/elan-touchpad force 1"

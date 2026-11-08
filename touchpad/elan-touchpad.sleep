@@ -1,0 +1,6 @@
+#!/bin/sh
+# systemd-sleep hook: the touchpad may forget its click force across
+# suspend without its hidraw node being re-created, so reapply it.
+case "$1" in
+    post) /usr/local/bin/elan-touchpad force 1 >/dev/null 2>&1 || true ;;
+esac

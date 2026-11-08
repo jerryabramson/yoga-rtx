@@ -1,0 +1,12 @@
+[Unit]
+Description=Yoga 9N brightness keys (with repeat) for the laptop panel only
+
+[Service]
+Type=simple
+# Desktop user and step %. install.sh fills in the user who ran sudo.
+ExecStart=/usr/local/sbin/panel-brightness-keys @USER@ 5
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

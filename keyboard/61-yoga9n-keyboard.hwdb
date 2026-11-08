@@ -1,0 +1,24 @@
+# Lenovo Yoga 9 2-in-1 16N1X11 (83N7), internal ITE keyboard (I2C HID 048D:83DB).
+#
+# The keyboard always sends plain F1-F6 for the top row, whatever Fn, Fn-Lock
+# or the BIOS hotkey-mode setting say. Lenovo routes the hotkey functions via
+# the EC -> ACPI Notify(WMIU, 0xD0) -> Windows WMI driver instead, and that
+# path is dead on Linux (nvidia-ffa-ec fails to probe; no CONFIG_ACPI_WMI).
+# So remap F1-F6 to their printed functions. Plain F1-F6 are lost on this
+# keyboard; F7-F12 are unchanged.
+#
+# Install: /etc/udev/hwdb.d/, then `systemd-hwdb update` and re-trigger the
+# input device (see install.sh).
+
+evdev:input:b0018v048Dp83DB*
+ KEYBOARD_KEY_7003a=mute
+ KEYBOARD_KEY_7003b=volumedown
+ KEYBOARD_KEY_7003c=volumeup
+ KEYBOARD_KEY_7003d=micmute
+ KEYBOARD_KEY_7003e=brightnessdown
+ KEYBOARD_KEY_7003f=brightnessup
+# User layout preferences, internal keyboard only (external keyboards untouched):
+# Caps Lock -> Left Ctrl (Left Ctrl itself unchanged), Right Alt -> Caps Lock.
+# The Copilot key sends no event at all (it goes via the EC path above).
+ KEYBOARD_KEY_70039=leftctrl
+ KEYBOARD_KEY_700e6=capslock
