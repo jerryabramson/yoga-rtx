@@ -80,3 +80,32 @@ The `_SUB` of the audio devices is `380217AA`: Lenovo subsystem
 MT8901 machine driver doesn't pass a subsystem ID to the amps anyway (the P16
 project patches `mt8901-acp-sdw-legacy-mach.c` with `snd_soc_card_set_pci_ssid`
 for ASUS). See [audio.md](audio.md).
+
+## USB4 / Thunderbolt
+
+A Thunderbolt dock works only as a USB-C dock: its USB devices work, but its
+DisplayPort outputs and Ethernet (both carried in USB4 tunnels) don't.
+
+- The USB4 **host routers** are `UBF0`–`UBF3` (DSDT ~12468, ~12749, ~13030,
+  ~13311), HID `NVDA8100`, `_CID ACPI0015` ("USB4 host interface device").
+  One pairs with each of the xHCIs `USB0`–`USB3`. On the reference machine
+  `UBF0` and `UBF3` are enabled (`_STA` 0x0F), one per USB-C port.
+- They're ACPI **platform** devices, not PCI NHIs. Linux's `thunderbolt`
+  driver only handles PCI NHIs (class 0x0c0340), and no kernel available for
+  Ubuntu 26.04 (`7.0.0-1025-nvidia`, `7.0.0-2024-nvidia-bos`) has a driver for
+  `NVDA8100`/`ACPI0015`. So `/sys/bus/thunderbolt/devices` never appears.
+- SSDT2 defines the tunnel side: PCIe host bridges `PCIB`/`PCIC`/`PCID`/`PCIE`
+  (segments 0x0B–0x0E, "USB4_Right_P0/P1", "USB4_Left_P0/P1"), whose root ports
+  carry `usb4-host-interface` → `\_SB.UBFn`. Segments 0x0B and 0x0E enumerate
+  as empty root ports (`10de:22cf`), waiting for PCIe tunnels that never come.
+- `\_SB.USB4` (`NVDA8001`) is only a fifth xHCI named "USB4", not a router.
+- Type-C management is down too: `ucsi_acpi USBC000:00: PPM init failed
+  (-ETIMEDOUT)`, likely the same EC transport problem as the hotkeys
+  (`nvidia-ffa-ec`). So no DisplayPort alt mode either.
+- Firmware hands the OS control (`USB4 _OSC: OS controls USB3+ DisplayPort+
+  PCIe+ XDomain+`), so this needs a real software connection manager driver
+  for these routers, comparable to the in-progress Qualcomm and Apple Silicon
+  USB4 work upstream. It isn't something a config change can fix.
+
+Workarounds: the laptop's own HDMI port for a display; a USB Ethernet adapter
+on the dock's USB ports.

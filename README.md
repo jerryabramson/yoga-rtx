@@ -26,6 +26,7 @@ Tested on Ubuntu 26.04.1 LTS, kernel `7.0.0-1025-nvidia`, NVIDIA driver
 | Pen on the touchpad surface | ❌ | the pad's pen collection is ignored by `hid-multitouch` |
 | Speaker tuning (CS35L56) | ❌ | no Lenovo `17aa:3802` tuning; untuned ROM firmware |
 | External monitor DDC/CI in KWin | ❌ | KWin reports `detectedDdcCi=false` |
+| Thunderbolt/USB4 dock: DisplayPort, Ethernet | ❌ | no Linux driver for the platform USB4 host routers (`NVDA8100`/`ACPI0015`); dock USB works (see [docs/acpi-findings.md](docs/acpi-findings.md#usb4--thunderbolt)) |
 
 ## Setup, in order
 
