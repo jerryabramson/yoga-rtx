@@ -45,7 +45,7 @@ Adapter on a USB 3.2 Gen 2×2 (20 Gbit/s) port, link 10000 Mb/s, iperf3 with
 | Driver | Download | Upload |
 |---|---|---|
 | `cdc_ncm` (stock 7.0) | 2.15 Gbit/s | 6.11 Gbit/s |
-| `r8152` v2.22.1 (Realtek, DKMS) | **6.33 Gbit/s** | not remeasured |
+| `r8152` v2.22.1 (Realtek, DKMS) | **6.33 Gbit/s** | **6.9 Gbit/s** |
 
 ### Gotchas
 

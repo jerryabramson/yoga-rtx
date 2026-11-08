@@ -14,7 +14,7 @@ Tested on Ubuntu 26.04.1 LTS, kernel `7.0.0-1025-nvidia`, NVIDIA driver
 |---|---|---|
 | Internal panel, HDMI, GPU/CUDA | ✅ | NVIDIA 615.71.10 open driver (DKMS) |
 | Wi-Fi | ✅ | stock (~1.35 Gbit/s measured) |
-| 10 GbE USB adapter (Realtek RTL8159) | ✅ | `network/`: Realtek's r8152 via DKMS; downloads 2.15 → 6.33 Gbit/s |
+| 10 GbE USB adapter (Realtek RTL8159) | ✅ | `network/`: Realtek's r8152 via DKMS; 6.33 Gbit/s down, 6.9 up (was 2.15 down) |
 | Internal keyboard, touchpad, touchscreen, pen | ✅ | `-nvidia` kernel + `acpi_osi="!Windows 2022"` |
 | Touchpad click force | ✅ | `touchpad/`: set to light (1 of 3) |
 | Hotkeys (mute, volume, mic mute, brightness) | ✅ | `keyboard/`: F1–F6 remapped (plain F1–F6 lost) |
