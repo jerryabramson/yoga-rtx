@@ -54,7 +54,7 @@ Every `install.sh` takes `--uninstall`.
 |---|---|
 | `docs/base-system.md` | Ubuntu, kernel, boot parameter, NVIDIA driver, CUDA |
 | `docs/acpi-findings.md` | What the firmware tables revealed (MediaTek IP, the `_OSI` gate, input devices, the EC/WMI hotkey path) |
-| `docs/touchpad.md`, `docs/keyboard.md`, `docs/audio.md`, `docs/network.md` | Per-component details and findings |
+| `docs/touchpad.md`, `docs/keyboard.md`, `docs/audio.md`, `docs/network.md` `docs/HARDWARE_QUIRKS.md` | Per-component details and findings |
 | `touchpad/` | `elan-touchpad` tool, udev rule, resume hook |
 | `audio/` | ALSA UCM profile |
 | `network/` | DKMS packaging for Realtek's r8152 driver (RTL8159) |
