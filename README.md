@@ -61,6 +61,51 @@ Every `install.sh` takes `--uninstall`.
 | `keyboard/` | hwdb remap, libinput quirk, `panel-brightness` + key service |
 | `tools/` | `keywatch` (evdev key events), `hid-descriptor` (HID report descriptor decoder) |
 
+
+## 3. System Specifications (Sanitized)
+
+```text
+  $ neofetch && mysystem && showDisks.sh
+           `.:/ossyyyysso/:.               user@hostname
+        .:oyyyyyyyyyyyyyyyyyyo:`           -------------
+      -oyyyyyyyodMMyyyyyyyysyyyyo-         OS: Kubuntu 26.04.1 LTS aarch64
+    -syyyyyyyyyydMMyoyyyydmMMyyyyys-       Host: LENOVO [REDACTED]
+   oyyysdMysyyyydMMMMMMMMMMMMMyyyyyyyo     Kernel: 7.0.0-1025-nvidia
+ `oyyyydMMMMysyysoooooodMMMMyyyyyyyyyo`    Uptime: 1 hour, 23 mins
+ oyyyyyydMMMMyyyyyyyyyyyysdMMysssssyyyo    Packages: 2877 (dpkg), 13 (snap)
+-yyyyyyyydMysyyyyyyyyyyyyyysdMMMMMysyyy-   Shell: bash 5.3.9
+oyyyysoodMyyyyyyyyyyyyyyyyyyydMMMMysyyyo   Resolution: 2880x1800
+yyysdMMMMMyyyyyyyyyyyyyyyyyyysosyyyyyyyy   DE: Plasma 6.6.6 (Wayland)
+yyysdMMMMMyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy   WM: kwin_wayland_wr
+oyyyyysosdyyyyyyyyyyyyyyyyyyydMMMMysyyyo   Theme: Mojave-Dark-solid [GTK2/3]
+-yyyyyyyydMysyyyyyyyyyyyyyysdMMMMMysyyy-   Icons: WhiteSur-dark [GTK2/3]
+ oyyyyyydMMMysyyyyyyyyyyysdMMyoyyyoyyyo    Terminal: kitty
+ `oyyyydMMMysyyyoooooodMMMMyoyyyyyyyyo     Terminal Font: Meslo [REDACTED]
+   oyyysyyoyyyysdMMMMMMMMMMMyyyyyyyyo      CPU: (20) @ 2.808GHz
+    -syyyyyyyyydMMMysyyydMMMysyyyys-       GPU: NVIDIA RTX Spark N1X
+      -oyyyyyyydMMyyyyyyysosyyyyo-         Memory: 3344MiB / 29073MiB
+        ./oyyyyyyyyyyyyyyyyyyo/.
+           `.:/oosyyyysso/:.`
+
+
+                  Hostname: [REDACTED]
+          Operating System: Linux   (Ubuntu 26.04.1 LTS) 7.0.0-1025-nvidia aarch64
+                  Platform: Linux 7.0.0-1025-nvidia
+                 CPU Model: Cortex-X925 Cortex-A725
+             Serial Number: [REDACTED]
+                 CPU Cores: 20
+        System Memory (GB): 28.39
+ VGA compatible controller: NVIDIA Corporation GB20B [RTX Spark N1X (6144-core Blackwell RTX GPU)] (rev a1)
+
+nvme1n1        1.8T disk                                                                                                                      Sandisk [REDACTED]
+├─nvme1n1p1    1.9G part /boot      ext4   345.9M    1.4G    19% [REDACTED]                                                                   Linux filesystem
+├─nvme1n1p2      1G part /boot/efi  vfat       8M      1G     1% [REDACTED]                                                                   EFI System
+├─nvme1n1p3   65.2G part /          ext4    31.9G   28.5G    50% [REDACTED]                                                                   Linux filesystem
+├─nvme1n1p4  186.3G part /home      ext4    26.6G  146.3G    15% [REDACTED]                                                                   Linux filesystem
+├─nvme1n1p5   14.9G part [SWAP]     swap                         [REDACTED]                                                                   Linux swap
+```
+
+
 ## Credits
 
 - NVIDIA's MT8901 UCM work: [alsa-ucm-conf PR 862](https://github.com/alsa-project/alsa-ucm-conf/pull/862).
